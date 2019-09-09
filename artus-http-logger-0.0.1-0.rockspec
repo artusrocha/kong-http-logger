@@ -5,7 +5,7 @@ description = {
   license = "Apache License 2.0"
 }
 source = {
-  "url" = "https://github.com/artusrocha/kong-http-logger.git"
+  url = "https://github.com/artusrocha/kong-http-logger.git"
 }
 dependencies = {
   "lua >= 5.1",

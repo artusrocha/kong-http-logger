@@ -1,3 +1,4 @@
+local BasePlugin = require 'kong.plugins.base_plugin'
 local basic_serializer = require "kong.plugins.log-serializers.basic"
 local BatchQueue = require "kong.tools.batch_queue"
 local cjson = require "cjson"
@@ -10,12 +11,14 @@ local ngx_encode_base64 = ngx.encode_base64
 local table_concat = table.concat
 local fmt = string.format
 
+local HttpLogHandler = BasePlugin:extend()
 
-local HttpLogHandler = {}
-
+function HttpLogHandler:new()
+  HttpLogHandler.super.new(self, "artus-http-logger")
+end
 
 HttpLogHandler.PRIORITY = 12
-HttpLogHandler.VERSION = "2.0.0"
+HttpLogHandler.VERSION = "0.0.1"
 
 
 local queues = {} -- one queue per unique plugin config
