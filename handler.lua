@@ -1,7 +1,7 @@
 local BasePlugin = require 'kong.plugins.base_plugin'
 local basic_serializer = require "kong.plugins.log-serializers.basic"
 local BatchQueue = require "kong.tools.batch_queue"
-local cjson = require "cjson"
+local cjson = require "cjson.safe"
 local url = require "socket.url"
 local http = require "resty.http"
 
@@ -141,24 +141,47 @@ local function get_queue_id(conf)
              conf.queue_size,
              conf.flush_timeout)
 end
---[[
-function HttpLogHandler:body_filter(config)
-    local chunk, eof = ngx.arg[1], ngx.arg[2]
-    if not eof then
-      -- sometimes the data comes in chunks and every chunk is a different call
-      -- so we will buffer the chunks in the context
-      if ngx.ctx.buffer and chunk then
-        ngx.ctx.buffer = ngx.ctx.buffer .. chunk
-      end
-      ngx.arg[1] = nil
-    else
-      -- body is fully read
-      local headers = res_get_headers()
-      local raw_body = ngx.ctx.buffer
---      ngx.log(ngx.DEBUG, string.format("Log Body :: %s", cjson_encode(json_transformed_body)))
+
+function HttpLogHandler:body_filter(conf)
+--  HttpLogHandler.super.body_filter(self)
+  local chunk, eof = ngx.arg[1], ngx.arg[2]
+  local buffered = ngx.ctx.buffered
+	if not buffered then 
+		buffered = {}
+		ngx.ctx.buffered = buffered
+	end
+  
+  if chunk ~= "" then
+    buffered[#buffered+1] = chunk
+  end
+  
+  if eof then
+    local whole = table.concat(buffered)
+    local q = load_queue(conf)
+    q:add( whole )
+    ngx.ctx.buffered = nil
+  end
+
+  --local t = chunk
+  -- local teste = cjson_encode(basic_serializer.serialize( t ))
+  --local q = load_queue(conf)
+  --q:add(t)
+--[[  if not eof then
+    -- sometimes the data comes in chunks and every chunk is a different call
+    -- so we will buffer the chunks in the context
+    if ngx.ctx.buffer and chunk then
+      ngx.ctx.buffer = ngx.ctx.buffer .. chunk
     end
+    ngx.arg[1] = nil
+  else
+    -- body is fully read
+    local headers = res_get_headers()
+    local raw_body = ngx.ctx.buffer
+--      ngx.log(ngx.DEBUG, string.format("Log Body :: %s", cjson_encode(json_transformed_body)))
+  end
+  ]]
 end
-]]
+
 
 function HttpLogHandler:log(conf)
   local entry = cjson_encode(basic_serializer.serialize(ngx))
@@ -171,7 +194,7 @@ function load_queue(conf)
   local q = queues[queue_id]
   if not q then
     -- batch_max_size <==> conf.queue_size
-    local batch_max_size = conf.queue_size or 1
+    local batch_max_size = 2 -- conf.queue_size or 1
     local process = function(entries)
       local payload = batch_max_size == 1
                       and entries[1]
