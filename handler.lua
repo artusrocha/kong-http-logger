@@ -141,7 +141,7 @@ local function get_queue_id(conf)
              conf.queue_size,
              conf.flush_timeout)
 end
-
+--[[
 function HttpLogHandler:body_filter(config)
     local chunk, eof = ngx.arg[1], ngx.arg[2]
     if not eof then
@@ -158,10 +158,15 @@ function HttpLogHandler:body_filter(config)
 --      ngx.log(ngx.DEBUG, string.format("Log Body :: %s", cjson_encode(json_transformed_body)))
     end
 end
+]]
 
 function HttpLogHandler:log(conf)
   local entry = cjson_encode(basic_serializer.serialize(ngx))
+  local q = load_queue(conf)
+  q:add(entry)
+end
 
+function load_queue(conf)
   local queue_id = get_queue_id(conf)
   local q = queues[queue_id]
   if not q then
@@ -189,8 +194,7 @@ function HttpLogHandler:log(conf)
     end
     queues[queue_id] = q
   end
-
-  q:add(entry)
+  return q
 end
 
 return HttpLogHandler
